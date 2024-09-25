@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "propertyGPT"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+langchain = "^0.3.1"
+langchain-chroma = "^0.1.4"
+langchain-ollama = "^0.2.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
