@@ -1,0 +1,6 @@
+[
+    {
+        "test": "function test_transfer() public {\n    ERC20 token = new ERC20(\"USD Coin\", \"USDC\");\n    address owner = address(this);\n    address recipient = address(0x1);\n    token.mint(owner, 100);\n\n    token.transfer(recipient, 50);\n    assertEq(token.balanceOf(owner), 50);\n    assertEq(token.balanceOf(recipient), 50);\n}",
+        "function": "function transfer(address to, uint256 amount) public virtual override returns (bool) {\n    address owner = msg.sender;\n    _transfer(owner, to, amount);\n    return true;\n}"
+    }
+]

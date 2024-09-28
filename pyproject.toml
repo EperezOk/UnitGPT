@@ -10,6 +10,7 @@ python = "^3.11"
 langchain = "^0.3.1"
 langchain-chroma = "^0.1.4"
 langchain-ollama = "^0.2.0"
+langchain-openai = "^0.2.1"
 
 
 [tool.poetry.group.dev.dependencies]
