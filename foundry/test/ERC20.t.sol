@@ -6,18 +6,27 @@ import "src/ERC20.sol";
 
 contract ERC20Test is Test {
 
-    function test_mint() public {
-        ERC20 token = new ERC20();
-        address account = 0x123456789;
-        uint256 amount = 100;
+    
+    function testMint(address account, uint256 amount) public {
+    ERC20Token token = new ERC20Token();
+    vm.startPrank(account);
+    token.mint(account, amount);
+    vm.stopPrank();
 
-        // Initial balance
-        assertEq(token.balanceOf(account), 0);
+    assertEq(token.balanceOf(account), amount);
+    assertEq(token.totalSupply(), amount);
 
-        // Mint tokens
-        token.mint(account, amount);
+    ERC20Token token2 = new ERC20Token();
+    token2._balances[account] = 100;
+    token2._totalSupply = 100;
 
-        // Check balance after minting
-        assertEq(token.balanceOf(account), amount);
-    }
+    vm.startPrank(account);
+    token2.mint(account, amount);
+    vm.stopPrank();
+
+    assertEq(token2.balanceOf(account), 100 + amount);
+    assertEq(token2.totalSupply(), 100 + amount);
+}
+    
+
 }
