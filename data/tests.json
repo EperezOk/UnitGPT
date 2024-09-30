@@ -1,6 +1,14 @@
-[
-    {
-        "test": "function test_transfer() public {\n    ERC20 token = new ERC20(\"USD Coin\", \"USDC\");\n    address owner = address(this);\n    address recipient = address(0x1);\n    token.mint(owner, 100);\n\n    token.transfer(recipient, 50);\n    assertEq(token.balanceOf(owner), 50);\n    assertEq(token.balanceOf(recipient), 50);\n}",
-        "function": "function transfer(address to, uint256 amount) public virtual override returns (bool) {\n    address owner = msg.sender;\n    _transfer(owner, to, amount);\n    return true;\n}"
-    }
-]
+{
+    "tests": [
+        {
+            "function": "function transfer(address to, uint256 amount) public virtual override returns (bool) {\n    address owner = msg.sender;\n    _transfer(owner, to, amount);\n    return true;\n}",
+            "description": "Transfer a token amount from the sender address to a recipient address",
+            "test": "function test_transfer() public {\n    ERC20 token = new ERC20(\"USD Coin\", \"USDC\");\n    address owner = address(this);\n    address recipient = address(0x1);\n    token.mint(owner, 100);\n\n    token.transfer(recipient, 50);\n    assertEq(token.balanceOf(owner), 50);\n    assertEq(token.balanceOf(recipient), 50);\n}"
+        },
+        {
+            "function": "function safeTransferFrom(\n    address from,\n    address to,\n    uint256 id,\n    uint256 amount,\n    bytes calldata data\n) public virtual {\n    require(msg.sender == from || isApprovedForAll[from][msg.sender], \"NOT_AUTHORIZED\");\n\n    balanceOf[from][id] -= amount;\n    balanceOf[to][id] += amount;\n\n    emit TransferSingle(msg.sender, from, to, id, amount);\n\n    require(\n        to.code.length == 0\n            ? to != address(0)\n            : ERC1155TokenReceiver(to).onERC1155Received(msg.sender, from, id, amount, data) ==\n                ERC1155TokenReceiver.onERC1155Received.selector,\n        \"UNSAFE_RECIPIENT\"\n    );\n}",
+            "test": "function testSafeTransferFromToEOA() public {\n    address from = address(0xABCD);\n\n    token.mint(from, 1337, 100, \"\");\n\n    vm.prank(from);\n    token.setApprovalForAll(address(this), true);\n\n    token.safeTransferFrom(from, address(0xBEEF), 1337, 70, \"\");\n\n    assertEq(token.balanceOf(address(0xBEEF), 1337), 70);\n    assertEq(token.balanceOf(from, 1337), 30);\n}",
+            "description": "Transfer an amount from one account to another of a particular token id. Check allowance and approval, and call the onERC1155Received callback if the recipient is a contract"
+        }
+    ]
+}
