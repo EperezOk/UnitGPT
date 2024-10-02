@@ -31,32 +31,44 @@ class Model:
         [reference function code example]: {reference_function_code_example}
         [contract code to be tested]: {contract_code}
         [function code to be tested]: {function_code}
+        [constructor function]: {constructor_function}
 
         ---
 
         Your output MUST be a single valid Solidity function, with the setup and assertions necessary to test the function. Do NOT wrap the function in a markdown code block.
         REMEMBER, do NOT include a description of the function or any other text, only the code.
         REMEMBER, you MUST only generate a single function, not a full test contract.
+        REMEMBER, check the functions declared in [conctract code to be tested] for functions parameters.
+        Contract initialization MUST use the parameters required in ([constructor function]) 
+
         """
 
         self.ERROR_PROMPT_TEMPLATE = """
         I wrote the Solidity test function ([test function code]) to run on the Foundry framework. When this code is compiled with Foundry, I get this error ([compiler error]).
         This test is for the function ([function code to be tested]) within the contract ([contract code to be tested]). 
 
-        Your task is to understand the test I provided, fix the test code, and correct the error within the test. You MUST modify the test function code while maintaining its functionality, but do NOT add other unrelated code.
+        Your task is to understand the test I provided, fix the test code, and correct the error within the test. You MUST modify the test function code while maintaining its functionality, but do NOT add other unrelated code. You can only use public functions declared in ([contract code to be tested]) and their parameters. 
 
+        If the error is due to a non-existent variable, find feasible methods to reimplement it, or if it is not implementable, delete this line.
+        If the error is due to incorrect arguments, look for the arguments for the function with the exact same name in ([contract code to be tested]).
         ---
 
         [test function code]: {test_function}
         [compiler error]: {error_info}
         [function code to be tested]: {function_code}
         [contract code to be tested]: {contract_code}
+        [function name]: {function_name}
+        [constructor function]: {constructor_function}
 
         ---
 
-        Your output MUST be a single valid Solidity function, with the setup and assertions necessary to test the function. Do NOT wrap the function in a markdown code block.
+        Your output MUST be a single valid Solidity function in the form of function test([function name])() {{logic of the test}}, with the setup and assertions necessary to test the function.
+        REMEMBER, Do NOT wrap the function in a markdown code block, Do NOT start the response with ```.
+        REMEMBER, Do NOT wrap the function inside a contract 
         REMEMBER, do NOT include a description of the function or any other text, only the code.
         REMEMBER, you MUST only generate a single test function, not a full test contract.
+        REMEMBER, the function must aim to test the function ([function_name]), not for other functions.
+        Contract initialization MUST use the parameters required in ([constructor function]) 
         """
 
         self.reference_function_code_example = """
@@ -96,6 +108,10 @@ class Model:
             _afterTokenTransfer(address(0), account, amount);
         }
         """
+
+        self.contract_constructor = """
+        constructor(string memory name_, string memory symbol_)
+        """
     
 
     def generate_test_function(self, contract_path, contract_name, recompile_tries = False, verbose=True):
@@ -114,7 +130,8 @@ class Model:
             "reference_function_test_code": self.reference_function_test_code,
             "reference_function_code_example": self.reference_function_code_example,
             "contract_code": contract_code,
-            "function_code": self.function_code
+            "function_code": self.function_code,
+            "constructor_function": self.contract_constructor
         })
 
         if verbose:
@@ -202,7 +219,7 @@ class Model:
             print("**************************************************")
 
         compiler_errors = self.get_compile_errors(test_function, contract_name)
-        if "Compiler run successful" in compiler_errors:
+        if "Compiler run successful" in compiler_errors or "No files changed, compilation skipped" in compiler_errors:
             if verbose:
                 print("**************************************************")
                 print("Compiler run successfully, ending iteration.")
@@ -226,7 +243,9 @@ class Model:
             "error_info": compiler_errors,
             "test_function": test_function,
             "contract_code": contract_code,
-            "function_code": self.function_code
+            "function_code": self.function_code,
+            "function_name": "mint",
+            "constructor_function": self.contract_constructor
         })
 
         if verbose:
