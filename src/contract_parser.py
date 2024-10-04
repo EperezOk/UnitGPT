@@ -10,7 +10,7 @@ class ContractParser:
         start_idx = 0
         str_functions = []
         for line_num, line in enumerate(self.solidity_contract.splitlines(), start=1):
-            if line.startswith("    function"):
+            if line.startswith("    function") or line.startswith("    receive"):
                 start_idx = line_num
             if line.startswith("    }"):
                 lines = self.solidity_contract.splitlines()[start_idx - 1:line_num]

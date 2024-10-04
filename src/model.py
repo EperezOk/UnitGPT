@@ -7,6 +7,8 @@ from langchain_chroma import Chroma
 from langchain_ollama import OllamaEmbeddings
 import subprocess
 import json
+import re
+from collections import Counter
 
 from src.contract_parser import ContractParser
 
@@ -14,6 +16,7 @@ class Model:
     def __init__(self, docs, embedding_model = "mxbai-embed-large", test_model = ChatOllama(model="llama3.1:8b"), compilation_model = ChatOllama(model="llama3.1:8b"), description_model = ChatOllama(model="llama3.1:8b"), use_rag = True):
         self.root = os.path.abspath(os.path.join(os.getcwd(), os.pardir))
         self.generated_tests = []
+        self.all_tests = []
         self.embedding_model = OllamaEmbeddings(model=embedding_model)
         self.vectorstore = Chroma.from_documents(
             documents=docs,
@@ -25,6 +28,9 @@ class Model:
         self.compilation_model = compilation_model
         self.description_model = description_model
         self.use_rag = use_rag
+        self.pattern = r"```solidity\s*(function.*?)```"
+
+        self.compiler_errors = Counter({})
 
         self.PROMPT_TEMPLATE = """
         Based on the test function ([reference function test code]) which tests the function code example ([reference function code example]), generate a corresponding test function for the ([function to be tested]) function within the ([contract code to be tested]) contract. This function is for use within the Foundry framework for writing smart contracts.
@@ -53,18 +59,19 @@ class Model:
 
         ---
 
-        Your output MUST be a single valid Solidity function, with the setup and assertions necessary to test the function. Do NOT wrap the function in a markdown code block.
+        Your output MUST be a single valid Solidity function, with the setup and assertions necessary to test the function.
         REMEMBER, do NOT include a description of the function or any other text, only the code.
         REMEMBER, you MUST only generate a single function, not a full test contract.
         """
 
         self.ERROR_PROMPT_TEMPLATE = """
-        I wrote the Solidity test function ([test function code]) to run on the Foundry framework. When this code is compiled with Foundry, I get this error ([compiler error]).
+        Here is the Solidity test function ([test function code]) to run on the Foundry framework. When this code is compiled with Foundry, I get this error ([compiler error]).
         This test is for the function ([function code to be tested]) within the contract ([contract code to be tested]). 
 
         Your task is to understand the test I provided, fix the test code, and correct the error within the test. You MUST modify the test function code while maintaining its functionality, but do NOT add other unrelated code.
 
-        If the error is due to a non-existent variable, find feasible methods to reimplement it, or if it is not implementable, delete this line.
+        If the error is due to an undeclared identifier or it is a member or identifier that was not found or not visible, find feasible methods to reimplement it, or if it is not implementable, delete this line. If it is a class, find similar named classes in [contract code to be tested]
+        1. Using the syntax style demonstrated in the provided code example, generate the test function code. Focus on the structural and syntactic aspects rather than replicating specific variable or function names from the example
 
         ---
 
@@ -75,7 +82,7 @@ class Model:
 
         ---
 
-        Your output MUST be a single valid Solidity function, with the setup and assertions necessary to test the function. Do NOT wrap the function in a markdown code block.
+        Your output MUST be a single valid Solidity function, with the setup and assertions necessary to test the function. Wrap the test function in between markdown brackets and word solidity
         REMEMBER, do NOT include a description of the function or any other text, only the code.
         REMEMBER, you MUST only generate a single test function, not a full test contract.
         """
@@ -88,6 +95,21 @@ class Model:
         ```
         """
         
+
+    def extract_function_from_markdown(self, text):
+        match = re.search(self.pattern, text, re.DOTALL)
+        if match:
+            return match.group(1).strip()
+        return None
+    
+
+    
+    def extract_error_codes(self, text):
+        error_codes = re.findall(r"Error \((\d+)\)", text)
+        
+        error_count = Counter(error_codes)
+        
+        return error_count
 
     def generate_function_description(self, public_function):
         prompt = ChatPromptTemplate.from_template(self.DESCRIPTION_PROMPT)
@@ -111,6 +133,10 @@ class Model:
             "function_code": function_code
         })
 
+        str_extracted = self.extract_function_from_markdown(response)
+        if str_extracted != None:
+            response = str_extracted
+
         if verbose:
             print("**************************************************")
             print("Function Code with no rag generated")
@@ -132,10 +158,12 @@ class Model:
             print("**************************************************")
             self.generated_tests.append(response)
         else:
+            self.compiler_errors += self.extract_error_codes(compiler_errors)
             print("**************************************************")
             print("Could not add generated test")
             print(compiler_errors)
             print("**************************************************")
+        self.all_tests.append(response)
     
 
     def generate_test_function(self, contract_code, function_code, reference_document, recompile_tries, foundry_path, contract_name, subtests=2, verbose=True):
@@ -158,6 +186,9 @@ class Model:
                 "contract_code": contract_code,
                 "function_code": function_code
             })
+            str_extracted = self.extract_function_from_markdown(response)
+            if str_extracted != None:
+                response = str_extracted
 
             if verbose:
                 print("**************************************************")
@@ -179,10 +210,12 @@ class Model:
                 print("**************************************************")
                 self.generated_tests.append(response)
             else:
+                self.compiler_errors += self.extract_error_codes(compiler_errors)
                 print("**************************************************")
                 print("Could not add generated test")
                 print(compiler_errors)
                 print("**************************************************")
+            self.all_tests.append(response)
 
 
     def generate_test_functions(self, foundry_path, contract_name, recompile_tries = 2, k=2, subtests=2, verbose=True):
@@ -345,6 +378,10 @@ class Model:
             "contract_code": contract_code,
             "function_code": function_code
         })
+
+        str_extracted = self.extract_function_from_markdown(error_response)
+        if str_extracted != None:
+            error_response = str_extracted
 
         if verbose:
             print("**************************************************")
