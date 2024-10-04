@@ -6,11 +6,11 @@ This project implements a **Retrieval-Augmented Generation (RAG)** pipeline to a
 
 Ensure you have the following tools installed:
 
-- [Foundry](https://github.com/foundry-rs/foundry): To run and compile Solidity contracts.
-- Python 3.x for running scripts.
+- [Foundry](https://github.com/foundry-rs/foundry): To run and compile Solidity contracts
+- Python 3.x for running scripts
 - Poetry for installing dependencies
 
 ## Authors
 
-- Baliarda Gonzalo
-- Perez Ezequiel Agustín
+- Baliarda, Gonzalo
+- Perez, Ezequiel
